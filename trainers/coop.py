@@ -1,4 +1,5 @@
 import os.path as osp
+from platform import processor
 
 import torch
 import torch.nn as nn
@@ -12,6 +13,9 @@ from dassl.optim import build_optimizer, build_lr_scheduler
 
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+
+from Medclip import Medclip,dataset
+
 
 _tokenizer = _Tokenizer()
 
@@ -30,6 +34,20 @@ def load_clip_to_cpu(cfg):
         state_dict = torch.load(model_path, map_location="cpu")
 
     model = clip.build_model(state_dict or model.state_dict())
+
+    return model
+
+
+def load_Medclip_to_cpu(cfg):
+    backbone_name = cfg.MODEL.BACKBONE.NAME
+
+    if backbone_name == "RN50":
+         # load MedCLIP-ResNet50
+         model = Medclip.MedCLIPModel(vision_cls=Medclip.MedCLIPVisionModel)
+         model.from_pretrained()
+    elif backbone_name == "ViT":
+         model = Medclip.MedCLIPModel(vision_cls=Medclip.MedCLIPVisionModelViT)
+         model.from_pretrained()
 
     return model
 
@@ -55,6 +73,11 @@ class TextEncoder(nn.Module):
         x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
 
         return x
+
+
+
+
+
 
 
 class PromptLearner(nn.Module):
@@ -192,6 +215,8 @@ class CustomCLIP(nn.Module):
         self.logit_scale = clip_model.logit_scale
         self.dtype = clip_model.dtype
 
+          
+
     def forward(self, image):
         image_features = self.image_encoder(image.type(self.dtype))
 
@@ -206,6 +231,30 @@ class CustomCLIP(nn.Module):
         logits = logit_scale * image_features @ text_features.t()
 
         return logits
+    
+
+class CustomMedCLIP(nn.Module):
+     def __init__(self, cfg, classnames, Medclip_model):
+        super().__init__()
+        self.prompt_learner = PromptLearner(cfg, classnames, Medclip_model)
+        self.processor = dataset.MedCLIPProcessor()
+        self.Medclip = Medclip_model
+    
+    
+     def forward(self,image):
+        prompts = self.prompt_learner()
+        inputs = self.processor(prompts,image,return_tensors="pt",padding=True)
+        
+        outputs = self.Medclip(**inputs)
+        logits = outputs['logits']
+
+        return logits
+
+         
+        
+
+
+
 
 
 @TRAINER_REGISTRY.register()
@@ -223,15 +272,23 @@ class CoOp(TrainerX):
         cfg = self.cfg
         classnames = self.dm.dataset.classnames
 
-        print(f"Loading CLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
-        clip_model = load_clip_to_cpu(cfg)
+        if self.cfg.PRETRAINED_MODEL == "clip":
+           print(f"Loading CLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
+           clip_model = load_clip_to_cpu(cfg)
+        elif self.cfg.PRETRAINED_MODEL == "Medclip":
+           print(f"Loading MedCLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
+           Medclip_model = load_Medclip_to_cpu(cfg)
         
         if cfg.TRAINER.COOP.PREC == "fp32" or cfg.TRAINER.COOP.PREC == "amp":
             # CLIP's default precision is fp16
             clip_model.float()
-
-        print("Building custom CLIP")
-        self.model = CustomCLIP(cfg, classnames, clip_model)
+        
+        if self.cfg.PRETRAINED_MODEL == "clip":
+           print("Building custom CLIP")
+           self.model = CustomCLIP(cfg, classnames, clip_model)
+        elif self.cfg.PRETRAINED_MODEL == "Medclip":
+           print("Building custom MedCLIP")
+           self.model = CustomMedCLIP(cfg, classnames, Medclip_model)
 
         print("Turning off gradients in both the image and the text encoder")
         for name, param in self.model.named_parameters():
