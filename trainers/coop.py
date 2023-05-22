@@ -75,7 +75,8 @@ class TextEncoder(nn.Module):
 
         return x
 
-
+#####由于未找到BERT模型的详细forwaed代码，直接将prompt learner生成的embedding后的prompt传入BERT网络中的encoder层和pooler层，用projection投影到与图像投影相同的512维度
+#####目前可运行但效果不好，很可能有错误
 class MedTextEncoder(nn.Module):
     def __init__(self, clip_model):
         super().__init__()
@@ -137,6 +138,8 @@ class MedPromptLearner(nn.Module):
 
         tokenized_prompts = clip_model.text_model.tokenizer(
             prompts, truncation=True, padding=True, return_tensors='pt')
+
+        #使用BERT模型中的embeddings对初始化的prompt进行embedding
         with torch.no_grad():
             embedding=clip_model.text_model.model.embeddings(tokenized_prompts.input_ids)
         

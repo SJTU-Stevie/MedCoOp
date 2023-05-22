@@ -212,7 +212,7 @@ if __name__ == "__main__":
         nargs=argparse.REMAINDER,
         help="modify config options using the command-line",
     )
-
+    ##选择clip或者Medclip作为预训练模型
     parser.add_argument(
         "--pretrained-model",type=str,default="clip",help="chose which pretrained model, CLIP or Medclip"
     )
