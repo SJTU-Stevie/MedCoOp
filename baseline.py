@@ -45,6 +45,14 @@ model = MedCLIPModel(vision_cls=MedCLIPVisionModel)
 model.from_pretrained()
 model.cuda()
 
+input_ids = torch.tensor([[31, 51, 99], [15, 5, 0]]).cuda()
+input_mask = torch.tensor([[1, 1, 1], [1, 1, 0]]).cuda()
+token_type_ids = torch.tensor([[0, 0, 1], [0, 2, 0]])
+Bertmodel = model.text_model.model
+embedding_output = Bertmodel.embeddings(input_ids,input_mask)
+encoder_output = Bertmodel.encoder(embedding_output)
+output = Bertmodel.pooler(encoder_output.last_hidden_state)
+label = model.text_model.projection_head(output)
 # build evaluator
 cls_prompts = generate_covid_class_prompts(n=12)
 val_data = ZeroShotImageDataset(['COVID','Normal'],

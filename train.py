@@ -18,6 +18,10 @@ import datasets.sun397
 import datasets.caltech101
 import datasets.ucf101
 import datasets.imagenet
+import datasets.Covid
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 
 import datasets.imagenet_sketch
 import datasets.imagenetv2
@@ -104,6 +108,7 @@ def extend_cfg(cfg):
     cfg.TRAINER.COCOOP.PREC = "fp16"  # fp16, fp32, amp
 
     cfg.DATASET.SUBSAMPLE_CLASSES = "all"  # all, base or new
+    cfg.DATASET.NUM_SHOTS = 16
 
 
 def setup_cfg(args):
@@ -157,7 +162,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=str, default="/home/charles/WorkSpace/Datasets/CoOp/", help="path to dataset")
-    parser.add_argument("--output-dir", type=str, default="output/test/CoOp/seed0/", help="output directory")
+    parser.add_argument("--output-dir", type=str, default="output/Clip_Coivd/CoOp/seed1/", help="output directory")
     parser.add_argument(
         "--resume",
         type=str,
@@ -165,7 +170,7 @@ if __name__ == "__main__":
         help="checkpoint directory (from which the training resumes)",
     )
     parser.add_argument(
-        "--seed", type=int, default=0, help="only positive value enables a fixed seed"
+        "--seed", type=int, default=1, help="only positive value enables a fixed seed"
     )
     parser.add_argument(
         "--source-domains", type=str, nargs="+", help="source domains for DA/DG"
@@ -182,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-config-file",
         type=str,
-        default="configs/datasets/oxford_flowers.yaml",
+        default="configs/datasets/Covid.yaml",
         help="path to config file for dataset setup",
     )
     parser.add_argument("--trainer", type=str, default="CoOp", help="name of trainer")

@@ -91,6 +91,7 @@ class MedCLIPVisionModel(nn.Module):
         '''
         if pixel_values.shape[1] == 1:
             pixel_values = pixel_values.repeat((1, 3, 1, 1))
+        pixel_values = pixel_values.to(torch.float32)
         img_embeds = self.model(pixel_values)
         return img_embeds
 
@@ -167,6 +168,9 @@ class MedCLIPModel(nn.Module):
         # learnable temperature for contrastive loss
         self.logit_scale = nn.Parameter(
             torch.log(torch.tensor(1/logit_scale_init_value)))
+        
+        self.dtype = torch.float16
+        
 
         if checkpoint is not None:
             state_dict = torch.load(os.path.join(
